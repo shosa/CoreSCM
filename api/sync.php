@@ -26,9 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Verifica autenticazione API
+// Verifica autenticazione API (case-insensitive per gli header)
 $headers = getallheaders();
-$apiSecret = $headers['X-API-Secret'] ?? $headers['x-api-secret'] ?? '';
+$apiSecret = '';
+
+// Cerca l'header in modo case-insensitive
+foreach ($headers as $key => $value) {
+    if (strtolower($key) === 'x-api-secret') {
+        $apiSecret = $value;
+        break;
+    }
+}
 
 if (empty($appConfig['security']['api_secret']) || $apiSecret !== $appConfig['security']['api_secret']) {
     http_response_code(401);
@@ -91,10 +99,8 @@ function handleGetUpdates()
 {
     $since = $_GET['since'] ?? '1970-01-01 00:00:00';
 
+    // PULL (CoreSCM → CoreGre): Solo progressi e stati, NON lanci/laboratori completi
     $tables = [
-        'scm_laboratories' => App\Models\ScmLaboratory::class,
-        'scm_launches' => App\Models\ScmLaunch::class,
-        'scm_launch_articles' => App\Models\ScmLaunchArticle::class,
         'scm_launch_phases' => App\Models\ScmLaunchPhase::class,
         'scm_progress_tracking' => App\Models\ScmProgressTracking::class,
     ];
@@ -104,10 +110,22 @@ function handleGetUpdates()
 
     foreach ($tables as $tableName => $modelClass) {
         $records = $modelClass::where('updated_at', '>', $since)->get()->toArray();
+
         if (!empty($records)) {
             $updates[$tableName] = $records;
             $totalRecords += count($records);
         }
+    }
+
+    // Aggiorna anche gli stati dei lanci (solo status, non tutto il lancio)
+    // Invia solo id, status, blocked_reason, updated_at
+    $launchesWithStatus = App\Models\ScmLaunch::where('updated_at', '>', $since)
+        ->get(['id', 'status', 'blocked_reason', 'updated_at'])
+        ->toArray();
+
+    if (!empty($launchesWithStatus)) {
+        $updates['scm_launches_status'] = $launchesWithStatus;
+        $totalRecords += count($launchesWithStatus);
     }
 
     logSync("GET_UPDATES: $totalRecords records sent (since: $since)", 'info');

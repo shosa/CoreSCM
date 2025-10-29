@@ -1,0 +1,3 @@
+# Blocca accesso diretto alla directory storage/
+Order deny,allow
+Deny from all

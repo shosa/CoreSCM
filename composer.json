@@ -1,0 +1,25 @@
+{
+    "name": "coresuite/corescm",
+    "description": "CoreSCM - Modulo SCM Pubblico per Lavoranti",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1",
+        "illuminate/database": "^10.0",
+        "illuminate/events": "^10.0",
+        "vlucas/phpdotenv": "^5.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\Controllers\\": "app/Controllers/",
+            "App\\Models\\": "app/Models/",
+            "App\\Core\\": "app/Core/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

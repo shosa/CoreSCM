@@ -1,0 +1,3 @@
+# Blocca accesso diretto alla directory database/
+Order deny,allow
+Deny from all

@@ -78,6 +78,10 @@ try {
             // Statistiche sincronizzazione
             handleGetStats();
             break;
+        case 'delete_missing':
+            // Cancella record che non esistono più su CoreGre
+            handleDeleteMissing();
+            break;
 
         default:
             http_response_code(400);
@@ -225,6 +229,54 @@ function handleGetStats()
     echo json_encode([
         'success' => true,
         'stats' => $stats,
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+}
+
+
+/**
+ * DELETE MISSING - Cancella record che non esistono più su CoreGre
+ */
+function handleDeleteMissing()
+{
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    if (!isset($data['table']) || !isset($data['valid_ids'])) {
+        throw new Exception('Missing table or valid_ids parameter');
+    }
+
+    $table = $data['table'];
+    $validIds = $data['valid_ids']; // Array di ID che DEVONO esistere
+
+    // Mappa tabelle => modelli
+    $tables = [
+        'scm_launches' => App\Models\ScmLaunch::class,
+        'scm_launch_articles' => App\Models\ScmLaunchArticle::class,
+        'scm_launch_phases' => App\Models\ScmLaunchPhase::class,
+        'scm_progress_tracking' => App\Models\ScmProgressTracking::class,
+    ];
+
+    if (!isset($tables[$table])) {
+        throw new Exception('Invalid table: ' . $table);
+    }
+
+    $modelClass = $tables[$table];
+
+    // Trova record che esistono nel DB ma NON nella lista valid_ids
+    $toDelete = $modelClass::whereNotIn('id', $validIds)->get();
+    $deletedCount = 0;
+
+    foreach ($toDelete as $record) {
+        $record->delete();
+        $deletedCount++;
+    }
+
+    logSync("DELETE_MISSING: Deleted $deletedCount records from $table", 'info');
+
+    echo json_encode([
+        'success' => true,
+        'table' => $table,
+        'deleted_count' => $deletedCount,
         'timestamp' => date('Y-m-d H:i:s')
     ]);
 }
